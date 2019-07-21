@@ -1,18 +1,19 @@
 module Typed
     ( 
         Variance(..), Param, Type, Substitutable, (==>), (<==),
-        cov, inv, contr, anc, single, comp, extends,
-        lstHierarchy, showHierarchy,
+        cov, inv, contr, single, comp, extends, anc, poly, any,
+        lstHierarchy, showHierarchy, buildType
     )
 where
 
-import           Data.List
+import           Data.List hiding (any)
 import           Data.Map (Map)
 import qualified Data.Map as M
+import Prelude hiding (any) 
 
-data Variance = Inv | Cov | Contr deriving (Eq, Show)
+data Variance = Inv | Cov | Contr deriving (Eq, Show, Ord)
 
-data Param a = TP { var :: Variance, param :: a } deriving Eq
+data Param a = TP { var :: Variance, param :: a } deriving (Eq, Ord)
 
 cov = TP Cov
 inv = TP Inv
@@ -23,7 +24,7 @@ instance (Show a) => Show (Param a) where
 
 data Type = Any
           | Poly String
-          | Cp String [Param Type] Type deriving Eq
+          | Cp String [Param Type] Type deriving (Eq, Ord)
 
 instance Show Type where
     show Any                 = "Any"
@@ -36,38 +37,67 @@ instance Show Type where
     show (Cp n l _) = n <> "[" <> intercalate ", " (fmap show l) <> "]"
 
 buildType :: String -> [Param Type] -> [Type] -> Type -> Either String Type
-buildType name tparams [] Any = Right $ comp name tparams
+buildType name tparams [] Any = Right $ Cp name tparams Any
+buildType _ _ _  Any = Left "Any doesnt has any holes, so no substitution can be performed"
+buildType _ _ _ (Poly _) = Left "Poly type cannot be inherited from"
+buildType name tparams [] p@(Cp _ [] _) = Right $ Cp name tparams p 
+buildType _    _       _    (Cp _ [] _) = Left $ "Parent doesnt have any poly holes to perform binding with" 
+buildType name tparams xs p@(Cp _ al _) = Cp name tparams . rewriteType p <$> relationMap 
+            where
+                -- TODO add doublication and length check for parameters lists
+                relationMap = do
+                    pn  <- polyNames tparams
+                    rewriteMap pn xs al
+
+rewriteType :: Type -> Map Type Type -> Type
+rewriteType Any _ = Any
+rewriteType a@(Poly _) _ = a 
+rewriteType (Cp n params anc) m = Cp n (rewriteParams params) (rewriteType anc m)
+        where rewriteParams :: [Param Type] -> [Param Type]
+              rewriteParams [] = []
+              rewriteParams (TP var t : xs) = case M.lookup t m of
+                                                 Just a -> TP var a : rewriteParams xs
+                                                 Nothing -> rewriteParams xs
+
 
 -- get poly types
-polyNames :: [Param Type] -> Either String [Param String]
-polyNames [] = Right []
-polyNames (TP var (Poly n) : xs) = (\ys -> TP var n : ys) <$> polyNames xs
+polyNames :: [Param Type] -> Either String (Map String Variance)
+polyNames [] = Right M.empty
+polyNames (TP var (Poly n) : xs) = M.insert n var <$> polyNames xs
 polyNames _ = Left "List of param types for type should contain only poly params"
 
-mappedPolyNames :: [Param String] -> Map String Variance
-mappedPolyNames l = M.fromList $ fmap (\case (TP var name) -> (name, var)) l
 
--- rewriteMap :: Map String Variance -> [Type] -> [Param Type] -> Either String (Map Type Type)
--- rewriteMap lparams [] [] = Right M.empty 
--- rewriteMap lparams [] x = Left "Not all parent params were covered" 
--- rewriteMap lparams x [] = Left "Parameter has less type params then substitution specifies" 
--- rewriteMap lparams (nm : ns) (TP yvar t : ts) | isValidSubst = _ -- M.insert t nm <$> rewriteMap lparams ns ts  -- xvar == yvar = M.insert nm t
---             where isValidSubst = case nm of 
---                                     Poly pn -> case M.lookup pn lparams of 
---                                                 Just var  -> var == yvar
---                                                 Nothing   -> False
---                                     _       -> True  
-
-
-anc :: Type -> Type
-anc (Cp _ _ a) = a
-anc _          = Any
+rewriteMap :: Map String Variance -> [Type] -> [Param Type] -> Either String (Map Type Type)
+rewriteMap _ [] [] = Right M.empty 
+rewriteMap _ [] _ = Left "Not all parent's type params were covered" 
+rewriteMap _ _ [] = Left "Parent's type param length is less then substitution specifies" 
+rewriteMap lparams (nm : ns) (TP yvar t : ts) = case isValidSubst of 
+                                                    Nothing -> M.insert t nm <$> rewriteMap lparams ns ts
+                                                    Just e  -> Left e
+            where isValidSubst = case nm of 
+                            Poly pn -> case M.lookup pn lparams of 
+                                            Just var  | var == yvar -> Nothing
+                                            Just var -> Just $ "Mismatching varience in the substitution " <> show var <> " " <> show nm <>
+                                                            " -> " <> show yvar <> " " <> show t
+                                            Nothing  -> Just $ "Cant substitute, " <> show nm <>" was not found in type's param list" 
+                            _       -> Nothing
 
 single :: String -> Type
 single s = Cp s [] Any
 
 comp :: String -> [Param Type] -> Type
 comp s l = Cp s l Any
+
+poly :: String -> Type
+poly = Poly
+
+any :: Type
+any = Any
+
+anc :: Type -> Type
+anc (Cp _ _ an) = an
+anc _ = Any
+
 
 extends :: Type -> Type -> Either String Type
 extends a Any = Right a
@@ -102,8 +132,8 @@ instance Substitutable (Param Type) where
 
 instance (Substitutable a) => Substitutable [a] where
     []       ==> []       = True
-    x        ==> []       = False
-    []       ==> x        = False
+    _        ==> []       = False
+    []       ==> _        = False
     (x : xs) ==> (y : ys) = x ==> y && xs ==> ys
 
 

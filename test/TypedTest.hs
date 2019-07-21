@@ -1,10 +1,9 @@
-{-# LANGUAGE LambdaCase #-}
-
 import           Test.Hspec
 import           System.IO.Unsafe
 import           Typed
 import           Data.Map                       ( Map )
 import qualified Data.Map                      as M
+import Prelude hiding (any)
 
 unsafeEither :: Either String b -> b
 unsafeEither (Left a) = unsafePerformIO . fail $ "Failed to prepare test data: " <> a
@@ -22,6 +21,8 @@ square, rect, shape :: Type
 funcB :: Type -> Type -> Type
 funcB a b = comp "=>" [contr a, cov b]
 
+a, b, c, d :: Type
+[a, b, c, d] = poly <$> ["A", "B", "C", "D"]
 
 func1 = funcB rect rect
 func2 = funcB func1 square
@@ -83,43 +84,43 @@ main = hspec $ do
             funcN1 ==> funcN2 `shouldBe` True
             funcN2 ==> funcN1 `shouldBe` False
 
+    describe "Type building tests" $ do
+        it "should create parameterless base type" $ example $ do
+            let
+              t = buildType "Circle" [] [] shape
+            showE t `shouldBe` "Circle"
         
+        it "should create base polymorphic function" $ example $ do
+            let
+              foo = buildType "=>" [contr a, cov b] [] any
+            showE foo `shouldBe` "A => B"
+        
+        it "should partially subtype poly function" $ example $ do
+            let
+              foo = unsafeEither $ buildType "=>" [contr a, cov b] [] any
+              im  = buildType "Partial" [contr c] [c, rect] foo
+            showEstr (showHierarchy <$> im) `shouldBe` "Partial[C] -> C => Rectangle -> Any"   
+        
+        it "should fail on type params lengths mismatch" $ example $ do
+            let
+              foo = unsafeEither $ buildType "=>" [contr a, cov b] [] any 
+            buildType "Partial" [contr c] [c] foo `shouldBe` Left "Not all parent's type params were covered"
+            buildType "Partial" [contr c, cov a] [c, a, c] foo `shouldBe` Left "Parent's type param length is less then substitution specifies"
 
-    -- describe "Inner machinery test" $ do
-    --     it "should add list to map" $ example $ do
-    --         let m = insertList [("beautiful", 2), ("World", 3), ("Hello", 4)] $ M.singleton "Hello" 1
-    --         M.size m `shouldBe` 3
-    --         M.lookup "Hello" m `shouldBe` Just 4
-    --         M.lookup "beautiful" m `shouldBe` Just 2
-    --         M.lookup "World" m `shouldBe` Just 3
-
-    --     it "should return unmatched hole E [+A, -B=R, -D=Q, F=E] unf [+R, -Q]" $ example $ do
-    --         let parentPolys = [cov "R", contr "Q"]
-    --             childrenBinds  = M.fromList [("R", Cov), ("Q", Contr), ("E", Inv)] 
-    --         unmatchedPoly parentPolys childrenBinds `shouldBe` Right (M.singleton "E" Inv)
+        it "should fail on mismatching variance" $ example $ do
+            let
+                foo = unsafeEither $ buildType "=>" [contr a, cov b] [] any
+                im  = buildType "Partial" [contr c] [c, c] foo
+            im `shouldBe` Left "Mismatching varience in the substitution Contr C -> Cov B"
     
-    --     it "should match all holes in [+A, +B=[P, R], -D=Q] unf [+P, +R, -Q]" $ example $ do
-    --         let parentPolys = [cov "P", cov "R", contr "Q"]
-    --             childrenBinds   = M.fromList [("P", Cov), ("R", Cov), ("Q", Contr)] 
-    --         unmatchedPoly parentPolys childrenBinds `shouldBe` Right M.empty
-    
-    --     -- Fail fast on unexisting binding to parents' poly hole
-    --     it "should fail on missing P hole in [+A, +B=R, -D=Q] unf [+P, +R, -Q]" $ example $ do
-    --         let parentPolys = [cov "P", cov "R", contr "Q"]
-    --             childrenBinds   = M.fromList [("R", Cov), ("Q", Contr)] 
-    --         unmatchedPoly parentPolys childrenBinds `shouldBe` Left "Unbinded poly hole P in parent list"
+        it "should fail on unspecified substitution parameter" $ example $ do
+            let
+                foo = unsafeEither $ buildType "=>" [contr a, cov b] [] any
+                im  = buildType "Partial" [contr c] [c, a] foo
+            im `shouldBe` Left "Cant substitute, A was not found in type's param list"
 
-    --     it "should fail on unvalid P hole in [+A, +B=[?E, R], -D=Q] unf [+P, +R, -Q]" $ example $ do
-    --         let parentPolys = [cov "P", cov "R", contr "Q"]
-    --             childrenBinds   = M.fromList [("E", Cov), ("R", Cov), ("Q", Contr)] 
-    --         unmatchedPoly parentPolys childrenBinds `shouldBe` Left "Unbinded poly hole P in parent list"
+showE :: (Show a) => Either String a -> String
+showE = either id show
 
-    --     it "should fail on inappr covariance type in [+A, -B=R, -D=Q] unf [+R, -Q]" $ example $ do
-    --         let parentPolys = [cov "R", contr "Q"]
-    --             childrenBinds  = M.fromList [("R", Contr), ("Q", Contr)] 
-    --         unmatchedPoly parentPolys childrenBinds `shouldBe` Left "Poly hole R has incompatible variance Contr with Cov"
-
-    -- describe "Type building test" $ do
-    --     it "should create List[String] impl Some[A, String]" $ example $ do
-
-            -- let lhs = [cov $ Free "A", cov $ Binded "B" ["P", "R"], contr $ Binded "D" ["Q"]]
+showEstr :: Either String String -> String
+showEstr = either id id
