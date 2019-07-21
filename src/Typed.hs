@@ -1,9 +1,8 @@
 module Typed
     ( 
-        Variance(..), Param, Type,
+        Variance(..), Param, Type, Substitutable, (==>), (<==),
         cov, inv, contr, anc, single, comp, extends,
-        parentOf, lstHierarchy, showHierarchy,
-        -- unmatchedPoly, insertList
+        lstHierarchy, showHierarchy,
     )
 where
 
@@ -13,7 +12,7 @@ import qualified Data.Map as M
 
 data Variance = Inv | Cov | Contr deriving (Eq, Show)
 
-data Param a = TP { var :: Variance, param :: a }
+data Param a = TP { var :: Variance, param :: a } deriving Eq
 
 cov = TP Cov
 inv = TP Inv
@@ -21,12 +20,6 @@ contr = TP Contr
 
 instance (Show a) => Show (Param a) where
     show = show . param
-
-instance Eq (Param Type) where
-    (TP Inv   a) == (TP Inv   b) = a == b
-    (TP Cov   a) == (TP Cov   b) = a `parentOf` b
-    (TP Contr a) == (TP Contr b) = b `parentOf` a
-    _            == _            = False
 
 data Type = Any
           | Poly String
@@ -42,55 +35,29 @@ instance Show Type where
             _            -> "(" <> show f <> ") " <> n <> " " <> show s
     show (Cp n l _) = n <> "[" <> intercalate ", " (fmap show l) <> "]"
 
--- buildType :: String -> [Param Type] -> Type -> Either String Type
--- buildType name tparams Any = Right $ comp name tparams
--- buildType _ _ (Hole _) = Left "Cannot build type from parent as a hole"
--- buildType name tparams p@(Cp _ rp _) = case e of 
---                                         Right [] -> Right $ Cp name tparams p
---                                         Right l  -> Left  $ "Following binding were not found at parent poly list" <> intercalate ", " (fmap (\(h, var) -> show var <> " " <> h) l)
---                                         Left  e  -> Left  e
---                 where
---                     (_ , lBindedPoly) = distPolyParams tparams
---                     lbinded = toBindedMap lBindedPoly
---                     rPoly = (\case (TP var (Free n))     -> TP var n
---                                    (TP var (Binded n _)) -> TP var n) <$> polyParams rp
---                     e = M.toList <$> unmatchedPoly rPoly lbinded
-                    
+buildType :: String -> [Param Type] -> [Type] -> Type -> Either String Type
+buildType name tparams [] Any = Right $ comp name tparams
 
--- -- parent poly params minus children ones
--- unmatchedPoly :: [Param String] -> Map String Variance -> Either String (Map String Variance)
--- unmatchedPoly [] m = Right m
--- unmatchedPoly (TP pvar n : xs) m = case M.lookup n m of
---         Just var | var == pvar -> unmatchedPoly xs $ M.delete n m
---         Just var -> Left $ "Poly hole " <> n <> " has incompatible variance " <> show var <> " with " <> show pvar
---         Nothing  -> Left $ "Unbinded poly hole " <> n <> " in parent list"
+-- get poly types
+polyNames :: [Param Type] -> Either String [Param String]
+polyNames [] = Right []
+polyNames (TP var (Poly n) : xs) = (\ys -> TP var n : ys) <$> polyNames xs
+polyNames _ = Left "List of param types for type should contain only poly params"
 
--- -- Returns map of parent's poly variables declared to be binded by a child
--- toBindedMap :: [Param Poly] -> Map String Variance
--- toBindedMap [] = M.empty
--- toBindedMap (TP var (Binded _ to): xs) = insertList (fmap (, var) to) (toBindedMap xs) 
--- toBindedMap (_ : xs) = toBindedMap xs
+mappedPolyNames :: [Param String] -> Map String Variance
+mappedPolyNames l = M.fromList $ fmap (\case (TP var name) -> (name, var)) l
 
--- insertList :: Ord k => [(k, v)] -> Map k v -> Map k v
--- insertList [] m = m
--- insertList ((k, v) : xs) m = M.insert k v (insertList xs m)
+-- rewriteMap :: Map String Variance -> [Type] -> [Param Type] -> Either String (Map Type Type)
+-- rewriteMap lparams [] [] = Right M.empty 
+-- rewriteMap lparams [] x = Left "Not all parent params were covered" 
+-- rewriteMap lparams x [] = Left "Parameter has less type params then substitution specifies" 
+-- rewriteMap lparams (nm : ns) (TP yvar t : ts) | isValidSubst = _ -- M.insert t nm <$> rewriteMap lparams ns ts  -- xvar == yvar = M.insert nm t
+--             where isValidSubst = case nm of 
+--                                     Poly pn -> case M.lookup pn lparams of 
+--                                                 Just var  -> var == yvar
+--                                                 Nothing   -> False
+--                                     _       -> True  
 
--- -- Returns set of polymorphic params undistinctively TODO: rewrite in more effective way
--- polyParams :: [Param Type] -> [Param Poly]
--- polyParams l = a ++ b
---             where
---                (a, b) = distPolyParams l
-
--- -- Returns set of binded and unbinded polymorphic params for specific type
--- distPolyParams :: [Param Type] -> ([Param Poly], [Param Poly])
--- distPolyParams  = foldl reducePolyParams ([], [])
-
-
--- reducePolyParams :: ([Param Poly], [Param Poly]) -> Param Type -> ([Param Poly], [Param Poly])
--- reducePolyParams (a , b) tp = case param tp of 
---                        (Hole h@(Free _)) -> (TP (var tp) h : a, b) 
---                        (Hole h@(Binded _ _)) -> (a, TP (var tp) h : b)
---                        _ -> (a, b)
 
 anc :: Type -> Type
 anc (Cp _ _ a) = a
@@ -110,13 +77,6 @@ extends (Poly _) _ = Left "you cannot extend hole from some type"
 extends (Cp an al Any) b = Right $ Cp an al b  
 extends t@(Cp _ _ par) b = if b == par then Right t else Left $ "Type" <> show t <> "already has a parent" <> show par
 
-parentOf :: Type -> Type -> Bool
-parentOf Any      _              = True
-parentOf _        Any            = False
-parentOf _        (Poly _)       = False
-parentOf (Poly _) _              = False
-parentOf a@Cp{}   b@(Cp _ _ bnc) = a == b || parentOf a bnc
-
 lstHierarchy :: Type -> Either String [String]
 lstHierarchy Any            = Right ["Any"]
 lstHierarchy (  Poly _    ) = Left "Cant deduce type hierarchy for a hole "
@@ -126,3 +86,30 @@ showHierarchy :: Type -> String
 showHierarchy t = case lstHierarchy t of
     Left  s -> s
     Right l -> intercalate " -> " l
+
+class Substitutable a where
+    (==>) :: a -> a -> Bool
+    (<==) :: a -> a -> Bool
+
+    a ==> b = b <== a
+    a <== b = b ==> a
+    
+instance Substitutable (Param Type) where
+    (TP Inv   a) ==> (TP Inv   b) = a == b
+    (TP Cov   a) ==> (TP Cov   b) = a ==> b
+    (TP Contr a) ==> (TP Contr b) = b ==> a
+    _            ==> _            = False
+
+instance (Substitutable a) => Substitutable [a] where
+    []       ==> []       = True
+    x        ==> []       = False
+    []       ==> x        = False
+    (x : xs) ==> (y : ys) = x ==> y && xs ==> ys
+
+
+instance Substitutable Type where
+    Any      ==> _        = True
+    _        ==> Any      = False
+    _        ==> (Poly _) = False
+    (Poly _) ==> _        = False
+    a@(Cp ln lpar _) ==> (Cp rn rpar bnc) = (ln == rn && lpar ==> rpar) || a ==> bnc

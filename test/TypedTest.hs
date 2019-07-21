@@ -49,30 +49,41 @@ main = hspec $ do
 
     describe "Polyless inheritance check" $ do
         it "should check inheritance of basic example" $ example $ do
-            rect   `parentOf` square  `shouldBe` True
-            shape  `parentOf` square  `shouldBe` True
-            square `parentOf` shape  `shouldBe` False
+            rect   ==> square  `shouldBe` True
+            shape  ==> square  `shouldBe` True
+            square ==> shape  `shouldBe` False
+
+        it "should not pass invaiance check" $ example $ do
+            let 
+              listR = comp "MutableList" [inv rect]
+              listSh = comp "MutableList" [inv shape]
+              listSq = comp "MutableList" [inv square]
+            listR   ==> listR  `shouldBe` True
+            listSh  ==> listR  `shouldBe` False
+            listR  ==> listSq  `shouldBe` False
 
         it "should pass covariance check" $ example $ do
             let 
               listOfShapes = comp "List" [cov shape]
               listOfSquares = comp "List" [cov shape]
-            listOfShapes `parentOf` listOfSquares `shouldBe` True
+            listOfShapes ==> listOfSquares `shouldBe` True
 
         it "wided function should be subtyped properly" $ example $ do
             let 
                 func1 = funcB rect rect
                 func2 = funcB shape square
-            func1 `parentOf` func2 `shouldBe` True
-            func2 `parentOf` func1 `shouldBe` False
+            func1 ==> func2 `shouldBe` True
+            func2 ==> func1 `shouldBe` False
 
         it "nested function should be subtyped properly" $ example $ do
             let 
                 func = funcB rect rect
                 funcN1 = funcB func1 shape
                 funcN2 = funcB (funcB square shape) square
-            funcN1 `parentOf` funcN2 `shouldBe` True
-            funcN2 `parentOf` funcN1 `shouldBe` False
+            funcN1 ==> funcN2 `shouldBe` True
+            funcN2 ==> funcN1 `shouldBe` False
+
+        
 
     -- describe "Inner machinery test" $ do
     --     it "should add list to map" $ example $ do
