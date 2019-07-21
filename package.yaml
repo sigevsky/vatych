@@ -54,7 +54,7 @@ executables:
 
 tests:
   vatych-test:
-    main:                Spec.hs
+    main:                TypedTest.hs
     source-dirs:         test
     ghc-options:
     - -threaded

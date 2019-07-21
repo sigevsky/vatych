@@ -30,17 +30,17 @@ instance Eq (Param Type) where
 
 data Type = Any
           | Poly String
-          | Cp String [Param Type] [Type] Type deriving Eq
+          | Cp String [Param Type] Type deriving Eq
 
 instance Show Type where
     show Any                 = "Any"
     show (Poly n) = n
-    show (Cp n [] _ _) = n
-    show (Cp n [f, s] _  _) = case param f of
-            (Cp _ [] _ _)  -> show f <> " " <> n <> " " <> show s
+    show (Cp n [] _) = n
+    show (Cp n [f, s] _ ) = case param f of
+            (Cp _ [] _)  -> show f <> " " <> n <> " " <> show s
             (Poly _   ) -> show f <> " " <> n <> " " <> show s
             _            -> "(" <> show f <> ") " <> n <> " " <> show s
-    show (Cp n l _ _) = n <> "[" <> intercalate ", " (fmap show l) <> "]"
+    show (Cp n l _) = n <> "[" <> intercalate ", " (fmap show l) <> "]"
 
 -- buildType :: String -> [Param Type] -> Type -> Either String Type
 -- buildType name tparams Any = Right $ comp name tparams
@@ -93,34 +93,34 @@ instance Show Type where
 --                        _ -> (a, b)
 
 anc :: Type -> Type
-anc (Cp _ _ _ a) = a
+anc (Cp _ _ a) = a
 anc _          = Any
 
 single :: String -> Type
-single s = Cp s [] [] Any
+single s = Cp s [] Any
 
 comp :: String -> [Param Type] -> Type
-comp s l = Cp s l [] Any
+comp s l = Cp s l Any
 
 extends :: Type -> Type -> Either String Type
 extends a Any = Right a
 extends Any _ = Left "you cannot create surtype of Any"
 extends _ (Poly _) = Left "you cannot extend from a hole"
 extends (Poly _) _ = Left "you cannot extend hole from some type"
-extends (Cp an al tp Any) b = Right $ Cp an al tp b  
-extends t@(Cp _ _ _ par) b = if b == par then Right t else Left $ "Type" <> show t <> "already has a parent" <> show par
+extends (Cp an al Any) b = Right $ Cp an al b  
+extends t@(Cp _ _ par) b = if b == par then Right t else Left $ "Type" <> show t <> "already has a parent" <> show par
 
 parentOf :: Type -> Type -> Bool
 parentOf Any      _              = True
 parentOf _        Any            = False
 parentOf _        (Poly _)       = False
 parentOf (Poly _) _              = False
-parentOf a@Cp{}   b@(Cp _ _ _ bnc) = a == b || parentOf a bnc
+parentOf a@Cp{}   b@(Cp _ _ bnc) = a == b || parentOf a bnc
 
 lstHierarchy :: Type -> Either String [String]
 lstHierarchy Any            = Right ["Any"]
 lstHierarchy (  Poly _    ) = Left "Cant deduce type hierarchy for a hole "
-lstHierarchy t@(Cp _ _ _ anc) = fmap (\x -> show t : x) (lstHierarchy anc)
+lstHierarchy t@(Cp _ _ anc) = fmap (\x -> show t : x) (lstHierarchy anc)
 
 showHierarchy :: Type -> String
 showHierarchy t = case lstHierarchy t of
