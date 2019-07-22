@@ -2,16 +2,29 @@ module Typed
     ( 
         Variance(..), Param, Type, Substitutable, (==>), (<==),
         cov, inv, contr, single, comp, extends, anc, poly, any,
-        lstHierarchy, showHierarchy, buildType
+        lstHierarchy, showHierarchy, buildType, polyPosition
     )
 where
 
 import           Data.List hiding (any)
 import           Data.Map (Map)
+import           Data.Semigroup hiding (Any)
 import qualified Data.Map as M
 import Prelude hiding (any) 
 
 data Variance = Inv | Cov | Contr deriving (Eq, Show, Ord)
+
+-- inv - 0 convr - (-1) cov - (+1)
+instance Semigroup Variance where
+    Contr <> Cov   = Contr
+    Cov   <> Contr = Contr
+    Contr <> Contr = Cov
+    Cov   <> Cov   = Cov
+    Inv   <> Inv   = Inv
+    Contr <> Inv   = Inv
+    Inv   <> Contr = Inv
+    Cov   <> Inv   = Inv
+    Inv   <> Cov   = Inv
 
 data Param a = TP { var :: Variance, param :: a } deriving (Eq, Ord)
 
@@ -82,6 +95,18 @@ rewriteMap lparams (nm : ns) (TP yvar t : ts) = case isValidSubst of
                                             Nothing  -> Just $ "Cant substitute, " <> show nm <>" was not found in type's param list" 
                             _       -> Nothing
 
+-- return variance positions of poly type a in type b
+polyPosition :: Type -> Type -> [Variance]
+polyPosition   (Poly p) (Cp n [] _) = []
+polyPosition a@(Poly p) (Cp n params _) = acc params []
+            where
+                acc :: [Param Type] -> [Variance] -> [Variance]
+                acc [] vs = vs
+                acc (TP var Any: xs) vs = vs
+                acc (TP var (Cp _ params _): xs) vs = fmap (var <>) (acc params vs) ++ acc xs []
+                acc (TP var x: xs) vs | x == a = var : vs
+polyPosition _ _ = [] --Change to Either String [Variance]?
+
 single :: String -> Type
 single s = Cp s [] Any
 
@@ -97,7 +122,6 @@ any = Any
 anc :: Type -> Type
 anc (Cp _ _ an) = an
 anc _ = Any
-
 
 extends :: Type -> Type -> Either String Type
 extends a Any = Right a

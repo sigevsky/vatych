@@ -97,27 +97,61 @@ main = hspec $ do
         
         it "should partially subtype poly function" $ example $ do
             let
-              foo = unsafeEither $ buildType "=>" [contr a, cov b] [] any
+              foo = funcB a b
               im  = buildType "Partial" [contr c] [c, rect] foo
             showEstr (showHierarchy <$> im) `shouldBe` "Partial[C] -> C => Rectangle -> Any"   
         
         it "should fail on type params lengths mismatch" $ example $ do
             let
-              foo = unsafeEither $ buildType "=>" [contr a, cov b] [] any 
+              foo = funcB a b
             buildType "Partial" [contr c] [c] foo `shouldBe` Left "Not all parent's type params were covered"
             buildType "Partial" [contr c, cov a] [c, a, c] foo `shouldBe` Left "Parent's type param length is less then substitution specifies"
 
         it "should fail on mismatching variance" $ example $ do
             let
-                foo = unsafeEither $ buildType "=>" [contr a, cov b] [] any
-                im  = buildType "Partial" [contr c] [c, c] foo
+              foo = funcB a b
+              im  = buildType "Partial" [contr c] [c, c] foo
             im `shouldBe` Left "Mismatching varience in the substitution Contr C -> Cov B"
     
         it "should fail on unspecified substitution parameter" $ example $ do
             let
-                foo = unsafeEither $ buildType "=>" [contr a, cov b] [] any
-                im  = buildType "Partial" [contr c] [c, a] foo
+              foo = funcB a b
+              im  = buildType "Partial" [contr c] [c, a] foo
             im `shouldBe` Left "Cant substitute, A was not found in type's param list"
+
+        it "should return poly type's variance position" $ example $ do
+            let
+              c t = comp "C" [contr t]
+              p t = comp "P" [cov t]
+              i t = comp "I" [inv t]
+              c1 = p $ p $ p a
+              c2 = c $ p $ i $ p a
+              c3 = p $ p $ c $ p a
+              c4 = p $ c $ c $ p a
+            show c1 `shouldBe` "P[P[P[A]]]"
+            polyPosition a c1 `shouldBe` [Cov]
+
+            show c2 `shouldBe` "C[P[I[P[A]]]]"
+            polyPosition a c2 `shouldBe` [Inv]
+
+            show c3 `shouldBe` "P[P[C[P[A]]]]"
+            polyPosition a c3 `shouldBe` [Contr]
+
+            show c4 `shouldBe` "P[C[C[P[A]]]]"
+            polyPosition a c4 `shouldBe` [Cov]
+
+        it "should return double enterance" $ example $ do
+            let
+              lst = comp "GenList" [cov a]
+              foo = funcB lst a
+            polyPosition a foo `shouldBe` [Contr, Cov] -- TODO impl
+
+        it "!!!!!!should fail putting covariant in contravariant position" $ example $ do
+            let
+              foo = funcB a b
+              lst = comp "GenList" [cov a]
+              im  = buildType "Partial" [cov a] [lst, a] foo
+            im `shouldBe` Left []
 
 showE :: (Show a) => Either String a -> String
 showE = either id show
