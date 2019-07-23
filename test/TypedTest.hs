@@ -129,29 +129,29 @@ main = hspec $ do
               c3 = p $ p $ c $ p a
               c4 = p $ c $ c $ p a
             show c1 `shouldBe` "P[P[P[A]]]"
-            polyPosition a c1 `shouldBe` [Cov]
+            extractPolyParams c1 `shouldBe` [cov "A"]
 
             show c2 `shouldBe` "C[P[I[P[A]]]]"
-            polyPosition a c2 `shouldBe` [Inv]
+            extractPolyParams c2 `shouldBe` [inv "A"]
 
             show c3 `shouldBe` "P[P[C[P[A]]]]"
-            polyPosition a c3 `shouldBe` [Contr]
+            extractPolyParams c3 `shouldBe` [contr "A"]
 
             show c4 `shouldBe` "P[C[C[P[A]]]]"
-            polyPosition a c4 `shouldBe` [Cov]
+            extractPolyParams c4 `shouldBe` [cov "A"]
 
         it "should return double enterance" $ example $ do
             let
               lst = comp "GenList" [cov a]
               foo = funcB lst a
-            polyPosition a foo `shouldBe` [Contr, Cov] -- TODO impl
+            extractPolyParams foo `shouldBe` [contr "A", cov "A"]
 
         it "!!!!!!should fail putting covariant in contravariant position" $ example $ do
             let
               foo = funcB a b
               lst = comp "GenList" [cov a]
               im  = buildType "Partial" [cov a] [lst, a] foo
-            im `shouldBe` Left []
+            im `shouldBe` Left ""
 
 showE :: (Show a) => Either String a -> String
 showE = either id show
