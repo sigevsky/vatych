@@ -129,22 +129,30 @@ main = hspec $ do
               c3 = p $ p $ c $ p a
               c4 = p $ c $ c $ p a
             show c1 `shouldBe` "P[P[P[A]]]"
-            extractPolyParams c1 `shouldBe` [cov "A"]
+            polysFromParams c1 `shouldBe` [cov "A"]
 
             show c2 `shouldBe` "C[P[I[P[A]]]]"
-            extractPolyParams c2 `shouldBe` [inv "A"]
+            polysFromParams c2 `shouldBe` [inv "A"]
 
             show c3 `shouldBe` "P[P[C[P[A]]]]"
-            extractPolyParams c3 `shouldBe` [contr "A"]
+            polysFromParams c3 `shouldBe` [contr "A"]
 
             show c4 `shouldBe` "P[C[C[P[A]]]]"
-            extractPolyParams c4 `shouldBe` [cov "A"]
+            polysFromParams c4 `shouldBe` [cov "A"]
 
         it "should return double enterance" $ example $ do
             let
               lst = comp "GenList" [cov a]
               foo = funcB lst a
-            extractPolyParams foo `shouldBe` [contr "A", cov "A"]
+            polysFromParams foo `shouldBe` [contr "A", cov "A"]
+
+        it "should return double enterance" $ example $ do
+          let
+            c t = comp "C" [contr t]
+            p t = comp "P" [cov t]
+            cps = funcB (p $ c $ funcB a (c b)) (c $ c b)
+          show cps `shouldBe` "P[C[A => C[B]]] => C[C[B]]"
+          polysFromParams cps `shouldBe` [contr "A", contr "B", cov "B"]
 
         it "!!!!!!should fail putting covariant in contravariant position" $ example $ do
             let

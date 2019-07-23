@@ -2,15 +2,16 @@ module Typed
     ( 
         Variance(..), Param, Type, Substitutable, (==>), (<==),
         cov, inv, contr, single, comp, extends, anc, poly, any,
-        lstHierarchy, showHierarchy, buildType, extractPolyParams
+        lstHierarchy, showHierarchy, buildType, polysFromParams
     )
 where
 
-import           Data.List hiding (any)
+import           Data.List (intercalate, nub)
 import           Data.Map (Map)
 import           Data.Semigroup hiding (Any)
 import qualified Data.Map as M
-import Prelude hiding (any) 
+
+import           Prelude hiding (any) 
 
 data Variance = Inv | Cov | Contr deriving (Eq, Show, Ord)
 
@@ -44,9 +45,8 @@ instance Show Type where
     show (Poly n) = n
     show (Cp n [] _) = n
     show (Cp n [f, s] _ ) = case param f of
-            (Cp _ [] _)  -> show f <> " " <> n <> " " <> show s
-            (Poly _   ) -> show f <> " " <> n <> " " <> show s
-            _            -> "(" <> show f <> ") " <> n <> " " <> show s
+            (Cp _ [_, _] _)  -> "(" <> show f <> ") " <> n <> " " <> show s
+            _  -> show f <> " " <> n <> " " <> show s
     show (Cp n l _) = n <> "[" <> intercalate ", " (fmap show l) <> "]"
 
 buildType :: String -> [Param Type] -> [Type] -> Type -> Either String Type
@@ -97,16 +97,16 @@ rewriteMap lparams (nm : ns) (TP yvar t : ts) = case isValidSubst of
                             _       -> Nothing
 
 -- extracts poly params from type param list i.e Foo[+C[A], -P[-L[-B]]] -> [cov A, contr B] 
-extractPolyParams :: Type -> [Param String]
-extractPolyParams Any      = []
-extractPolyParams (Poly _) = []
-extractPolyParams (Cp _ params _) = acc params []
+polysFromParams :: Type -> [Param String]
+polysFromParams Any      = []
+polysFromParams (Poly _) = []
+polysFromParams (Cp _ params _) = acc params
             where
-                acc :: [Param Type] -> [Param String] -> [Param String]
-                acc [] vs = vs
-                acc (TP var Any: _) vs = vs
-                acc (TP var (Poly n): xs) vs = TP var n : vs
-                acc (TP var (Cp _ params _): xs) vs = fmap (\(TP v n) -> TP (var <> v) n) (acc params vs) ++ acc xs []
+                acc :: [Param Type] -> [Param String]
+                acc [] = []
+                acc (TP var Any: _) = []
+                acc (TP var (Poly n): xs) = TP var n : acc xs
+                acc (TP var (Cp _ params _): xs) = fmap (\(TP v n) -> TP (var <> v) n) (acc params) ++ acc xs
 
 single :: String -> Type
 single s = Cp s [] Any
