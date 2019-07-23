@@ -111,13 +111,13 @@ main = hspec $ do
             let
               foo = funcB a b
               im  = buildType "Partial" [contr c] [c, c] foo
-            im `shouldBe` Left "Mismatching varience in the substitution Contr C -> Cov B"
+            im `shouldBe` Left "Variance mismatch of type C. Declared Contr is not compatible with required Cov"
     
         it "should fail on unspecified substitution parameter" $ example $ do
             let
               foo = funcB a b
               im  = buildType "Partial" [contr c] [c, a] foo
-            im `shouldBe` Left "Cant substitute, A was not found in type's param list"
+            im `shouldBe` Left "Substitution poly type A is not present in type's param list"
 
         it "should return poly type's variance position" $ example $ do
             let
@@ -129,22 +129,22 @@ main = hspec $ do
               c3 = p $ p $ c $ p a
               c4 = p $ c $ c $ p a
             show c1 `shouldBe` "P[P[P[A]]]"
-            polysFromParams c1 `shouldBe` [cov "A"]
+            polysFromParams c1 `shouldBe` [cov a]
 
             show c2 `shouldBe` "C[P[I[P[A]]]]"
-            polysFromParams c2 `shouldBe` [inv "A"]
+            polysFromParams c2 `shouldBe` [inv a]
 
             show c3 `shouldBe` "P[P[C[P[A]]]]"
-            polysFromParams c3 `shouldBe` [contr "A"]
+            polysFromParams c3 `shouldBe` [contr a]
 
             show c4 `shouldBe` "P[C[C[P[A]]]]"
-            polysFromParams c4 `shouldBe` [cov "A"]
+            polysFromParams c4 `shouldBe` [cov a]
 
         it "should return double enterance" $ example $ do
             let
               lst = comp "GenList" [cov a]
               foo = funcB lst a
-            polysFromParams foo `shouldBe` [contr "A", cov "A"]
+            polysFromParams foo `shouldBe` [contr a, cov a]
 
         it "should return double enterance" $ example $ do
           let
@@ -152,14 +152,14 @@ main = hspec $ do
             p t = comp "P" [cov t]
             cps = funcB (p $ c $ funcB a (c b)) (c $ c b)
           show cps `shouldBe` "P[C[A => C[B]]] => C[C[B]]"
-          polysFromParams cps `shouldBe` [contr "A", contr "B", cov "B"]
+          polysFromParams cps `shouldBe` [contr a, contr b, cov b]
 
-        it "!!!!!!should fail putting covariant in contravariant position" $ example $ do
+        it "should fail putting covariant type in contravariant position" $ example $ do
             let
               foo = funcB a b
               lst = comp "GenList" [cov a]
               im  = buildType "Partial" [cov a] [lst, a] foo
-            im `shouldBe` Left ""
+            im `shouldBe` Left "Variance mismatch of type A. Declared Cov is not compatible with required Contr"
 
 showE :: (Show a) => Either String a -> String
 showE = either id show
