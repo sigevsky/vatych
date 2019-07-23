@@ -27,6 +27,7 @@ a, b, c, d :: Type
 func1 = funcB rect rect
 func2 = funcB func1 square
 func3 = funcB square func1
+lst a = comp "List" [cov a]
 
 main :: IO ()
 main = hspec $ do
@@ -101,6 +102,11 @@ main = hspec $ do
               im  = buildType "Partial" [contr c] [c, rect] foo
             showEstr (showHierarchy <$> im) `shouldBe` "Partial[C] -> C => Rectangle -> Any"   
         
+        it "should fail on non poly type's parameters passed" $ example $ do
+          let
+            foo = buildType "Some" [cov a, cov $ lst a, contr b] [] any
+          foo `shouldBe` Left "List of param for the type should contain only polymorphic ones"
+
         it "should fail on type params lengths mismatch" $ example $ do
             let
               foo = funcB a b
@@ -142,8 +148,7 @@ main = hspec $ do
 
         it "should return double enterance" $ example $ do
             let
-              lst = comp "GenList" [cov a]
-              foo = funcB lst a
+              foo = funcB (lst a) a
             polysFromParams foo `shouldBe` [contr a, cov a]
 
         it "should return double enterance" $ example $ do
@@ -157,8 +162,7 @@ main = hspec $ do
         it "should fail putting covariant type in contravariant position" $ example $ do
             let
               foo = funcB a b
-              lst = comp "GenList" [cov a]
-              im  = buildType "Partial" [cov a] [lst, a] foo
+              im  = buildType "Partial" [cov a] [lst a, a] foo
             im `shouldBe` Left "Variance mismatch of type A. Declared Cov is not compatible with required Contr"
 
 showE :: (Show a) => Either String a -> String
