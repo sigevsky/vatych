@@ -40,8 +40,9 @@ parseTypeP :: TypeDeclarations -> Parser Type
 parseTypeP (TD c) = do
         n <- nameP -- replace with recursive type parsing like List[List[A]]
         case M.lookup n c of
-            Just t -> pure t
-            Nothing -> customFailure $ "Failed to find type " <> n <> " declaration"
+                 Just t -> pure t
+                 Nothing -> customFailure $ "Failed to find type " <> n <> " declaration"
+        
 
 instance ShowErrorComponent String where
     showErrorComponent = show

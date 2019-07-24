@@ -77,7 +77,7 @@ buildType name tparams xs p@(Cp _ al _) = Cp name tparams <$> rewrited
   where
     rewrited :: Either String Type = do
         pn <- polyNames tparams
-        m  <- rewriteMap pn xs al
+        m  <- rewriteMap xs al
         let rt     = rewriteType p m
             rpolys = polysFromParams rt
             dif    = rpolys \\ tparams -- not covered polys in type i.e varience mismatch
@@ -97,7 +97,7 @@ buildType name tparams xs p@(Cp _ al _) = Cp name tparams <$> rewrited
                         $  "Substitution poly type "
                         <> show t
                         <> " is not present in type's param list"
-                                               
+
 rewriteType :: Type -> Map Type Type -> Type
 rewriteType Any                 _ = Any
 rewriteType a@(Poly _         ) _ = a
@@ -116,11 +116,11 @@ polyNames (TP var (Poly n) : xs) = M.insert n var <$> polyNames xs
 polyNames _ = Left "List of param for the type should contain only polymorphic ones"
 
 
-rewriteMap :: Map String Variance -> [Type] -> [Param Type] -> Either String (Map Type Type)
-rewriteMap _ [] [] = Right M.empty 
-rewriteMap _ [] _ = Left "Not all parent's type params were covered" 
-rewriteMap _ _ [] = Left "Parent's type param length is less then substitution specifies" 
-rewriteMap lparams (nm : ns) (TP yvar t : ts) = M.insert t nm <$> rewriteMap lparams ns ts
+rewriteMap :: [Type] -> [Param Type] -> Either String (Map Type Type)
+rewriteMap [] [] = Right M.empty 
+rewriteMap [] _ = Left "Not all parent's type params were covered" 
+rewriteMap _ [] = Left "Parent's type param length is less then substitution specifies" 
+rewriteMap (nm : ns) (TP yvar t : ts) = M.insert t nm <$> rewriteMap ns ts
             
 -- extracts poly params from type param list i.e Foo[-C[-A], -P[-L[-B]]] -> [cov A, contr B] 
 polysFromParams :: Type -> [Param Type]
