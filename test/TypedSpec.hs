@@ -1,36 +1,16 @@
+module TypedSpec (spec) where
+
 import           Test.Hspec
-import           System.IO.Unsafe
 import           Typed
-import           Data.Map                       ( Map )
-import qualified Data.Map                      as M
-import Prelude hiding (any)
-
-unsafeEither :: Either String b -> b
-unsafeEither (Left a) = unsafePerformIO . fail $ "Failed to prepare test data: " <> a
-unsafeEither (Right a) = a
-
---Unsafe hierarchy
-square, rect, shape :: Type
-[square, rect, shape] = unsafeEither $ do
-    shape  <- Right $ single "Shape"
-    rect   <- single "Rectangle" `extends` shape
-    square <- single "Square" `extends` rect
-    return [square, rect, shape]
-
--- Func examples
-funcB :: Type -> Type -> Type
-funcB a b = comp "=>" [contr a, cov b]
-
-a, b, c, d :: Type
-[a, b, c, d] = poly <$> ["A", "B", "C", "D"]
+import           Prelude hiding (any)
+import           TestTypeData
 
 func1 = funcB rect rect
 func2 = funcB func1 square
 func3 = funcB square func1
-lst a = comp "List" [cov a]
 
-main :: IO ()
-main = hspec $ do
+spec :: Spec
+spec = do
     describe "Basic type capabilities" $ do
         it "should print types in infix form" $ example $ do
             show func1  `shouldBe` "Rectangle => Rectangle"
@@ -164,9 +144,3 @@ main = hspec $ do
               foo = funcB a b
               im  = buildType "Partial" [cov a] [lst a, a] foo
             im `shouldBe` Left "Variance mismatch of type A. Declared Cov is not compatible with required Contr"
-
-showE :: (Show a) => Either String a -> String
-showE = either id show
-
-showEstr :: Either String String -> String
-showEstr = either id id

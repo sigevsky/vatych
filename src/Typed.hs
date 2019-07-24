@@ -1,6 +1,6 @@
 module Typed
     ( 
-        Variance(..), Param, Type, Substitutable, (==>), (<==),
+        Variance(..), Param(..), Type, Substitutable, (==>), (<==),
         cov, inv, contr, single, comp, extends, anc, poly, any,
         lstHierarchy, showHierarchy, buildType, polysFromParams
     )

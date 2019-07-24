@@ -23,6 +23,9 @@ dependencies:
 - base >= 4.7 && < 5
 - hspec
 - containers
+- megaparsec
+- hspec-megaparsec
+- text
 
 default-extensions:
 - FlexibleInstances
@@ -54,7 +57,7 @@ executables:
 
 tests:
   vatych-test:
-    main:                TypedTest.hs
+    main:                Spec.hs
     source-dirs:         test
     ghc-options:
     - -threaded
