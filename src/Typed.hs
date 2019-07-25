@@ -43,12 +43,6 @@ data Type = Any
           | Poly String
           | Cp String [Param Type] Type deriving (Eq, Ord)
 
-typeName :: Type -> String
-typeName Any = "Any"
-typeName (Poly n) = n
-typeName (Cp n _ _) = n
-
-
 instance Show Type where
     show Any                 = "Any"
     show (Poly n) = n
@@ -71,11 +65,11 @@ buildType name tparams xs p@(Cp _ al _) = Cp name (toPoly tparams) <$> rewrited
   where
     rewrited :: Either String Type = do
         m  <- rewriteMap xs al
-        rewriteType p m `compliesWith` tparams
+        rewriteType p m `compliedWith` tparams
         
 --check that builded parent type complies with generics constraints defined in type's parameter list
-compliesWith :: Type -> [Param String] -> Either String Type
-compliesWith t params = 
+compliedWith :: Type -> [Param String] -> Either String Type
+compliedWith t params = 
     case polysFromTypeParams t \\ params of
             []             -> Right t
             (TP rv tn : xs) -> case M.lookup tn $ toMap params of
