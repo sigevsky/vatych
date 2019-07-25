@@ -45,5 +45,6 @@ spec =
             parse (parseTypeP testDeclarations) "" `shouldFailOn` "Map[Rectangle]"
             parse (parseTypeP testDeclarations) "" `shouldFailOn` "Map[Rectangle, A, Shape]"
 
-        it "should fail on unknown type of a kind (* -> *)" $ example $
+        it "should fail on unknown type of a kind (* -> *)" $ example $ do
             parse (parseTypeP testDeclarations) "" `shouldFailOn` "List[F[A]]"
+            parse (parseTypeP testDeclarations) "" `shouldFailOn` "Rectangle[A]"

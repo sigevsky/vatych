@@ -40,13 +40,13 @@ parseTypeP :: TypeDeclarations -> Parser Type
 parseTypeP dc@(TD c) = do
         n <- nameP -- replace with recursive type parsing like List[List[A]]
         case M.lookup n c of
-                 Nothing -> poly n <$ notFollowedBy lSquareBracket
-                 Just Any  -> pure any
-                 Just a@(Cp _ [] _) -> a <$ notFollowedBy lSquareBracket
-                 Just a@(Cp _ params _) -> do 
-                    types <- paramListP (parseTypeP dc)
-                    rm <- either customFailure pure $ rewriteMap types params
-                    return $ rewriteType a rm
+            Nothing -> poly n <$ notFollowedBy lSquareBracket
+            Just Any  -> pure any
+            Just a@(Cp _ [] _) -> a <$ notFollowedBy lSquareBracket
+            Just a@(Cp _ params _) -> do 
+                types <- paramListP (parseTypeP dc)
+                rm <- either customFailure pure $ rewriteMap types params
+                return $ rewriteType a rm
     where
         lSquareBracket :: Parser Char = char '['
         

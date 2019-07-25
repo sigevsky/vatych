@@ -115,21 +115,21 @@ spec = do
               c3 = p $ p $ c $ p a
               c4 = p $ c $ c $ p a
             show c1 `shouldBe` "P[P[P[A]]]"
-            polysFromParams c1 `shouldBe` [cov a]
+            polysFromTypeParams c1 `shouldBe` [cov a]
 
             show c2 `shouldBe` "C[P[I[P[A]]]]"
-            polysFromParams c2 `shouldBe` [inv a]
+            polysFromTypeParams c2 `shouldBe` [inv a]
 
             show c3 `shouldBe` "P[P[C[P[A]]]]"
-            polysFromParams c3 `shouldBe` [contr a]
+            polysFromTypeParams c3 `shouldBe` [contr a]
 
             show c4 `shouldBe` "P[C[C[P[A]]]]"
-            polysFromParams c4 `shouldBe` [cov a]
+            polysFromTypeParams c4 `shouldBe` [cov a]
 
         it "should return double enterance" $ example $ do
             let
               foo = funcB (lst a) a
-            polysFromParams foo `shouldBe` [contr a, cov a]
+            polysFromTypeParams foo `shouldBe` [contr a, cov a]
 
         it "should return double enterance" $ example $ do
           let
@@ -137,7 +137,7 @@ spec = do
             p t = comp "P" [cov t]
             cps = funcB (p $ c $ funcB a (c b)) (c $ c b)
           show cps `shouldBe` "P[C[A => C[B]]] => C[C[B]]"
-          polysFromParams cps `shouldBe` [contr a, contr b, cov b]
+          polysFromTypeParams cps `shouldBe` [contr a, contr b, cov b]
 
         it "should fail putting covariant type in contravariant position" $ example $ do
             let

@@ -2,7 +2,7 @@ module Typed
     (  -- Reduce scope of Type(..)
         Variance(..), Param(..), Type(..), Substitutable, (==>), (<==),
         cov, inv, contr, single, comp, extends, anc, poly, any,
-        lstHierarchy, showHierarchy, buildType, polysFromParams,
+        lstHierarchy, showHierarchy, buildType, polysFromTypeParams,
         rewriteType, rewriteMap
     )
 where
@@ -55,7 +55,6 @@ instance Show Type where
             (Cp _ [_, _] _)  -> "(" <> show f <> ") " <> n <> " " <> show s
             _  -> show f <> " " <> n <> " " <> show s
     show (Cp n l _) = n <> "[" <> intercalate ", " (fmap show l) <> "]"
-
 areAllPolys [] = True
 areAllPolys (TP _ (Poly _): xs) = True && areAllPolys xs
 areAllPolys _ = False
@@ -80,7 +79,7 @@ buildType name tparams xs p@(Cp _ al _) = Cp name tparams <$> rewrited
         pn <- polyNames tparams
         m  <- rewriteMap xs al
         let rt     = rewriteType p m
-            rpolys = polysFromParams rt
+            rpolys = polysFromTypeParams rt
             dif    = rpolys \\ tparams -- not covered polys in type i.e varience mismatch
         case dif of
             []             -> Right rt
@@ -98,6 +97,8 @@ buildType name tparams xs p@(Cp _ al _) = Cp name tparams <$> rewrited
                         $  "Substitution poly type "
                         <> show t
                         <> " is not present in type's param list"
+--check that builded parent type complies with generics constraints defined in type's parameter list
+
 -- get poly types
 polyNames :: [Param Type] -> Either String (Map String Variance)
 polyNames [] = Right M.empty
@@ -122,10 +123,10 @@ rewriteMap _ [] = Left "Parent's type param length is less then substitution spe
 rewriteMap (nm : ns) (TP yvar t : ts) = M.insert t nm <$> rewriteMap ns ts
             
 -- extracts poly params from type param list i.e Foo[-C[-A], -P[-L[-B]]] -> [cov A, contr B] 
-polysFromParams :: Type -> [Param Type]
-polysFromParams Any             = []
-polysFromParams (Poly _       ) = []
-polysFromParams (Cp _ params _) = nub $ acc params
+polysFromTypeParams :: Type -> [Param Type]
+polysFromTypeParams Any             = []
+polysFromTypeParams (Poly _       ) = []
+polysFromTypeParams (Cp _ params _) = nub $ acc params
   where
     acc :: [Param Type] -> [Param Type]
     acc []                         = []
