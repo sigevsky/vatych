@@ -58,8 +58,8 @@ spec = do
         
         it "should parse verbose version of basic declaration" $ example $ do
             let some = single "Some"
-            (parse (declarationP testCont) "" "class Some extends Any\n") `shouldParseHierarchyOf` (single "Some")
-            (parse (declarationP testCont) "" "class Some extends Rectangle\n") `shouldParseHierarchyOf` (some `extends` rect)
+            parse (declarationP testCont) "" "class Some extends Any\n" `shouldParseHierarchyOf` single "Some"
+            parse (declarationP testCont) "" "class Some extends Rectangle\n" `shouldParseHierarchyOf` (some `extends` rect)
 
         it "should parse basic declaration with type params" $ example $
             parse (declarationP testCont) "" "class Hello[A, +B]\n" `shouldParse` comp "Hello" [inv a, cov b]
@@ -76,7 +76,7 @@ class CompareHierarchycally b where
         Either (ParseErrorBundle s e) Type -> b -> Expectation  
 
 instance CompareHierarchycally Type where
-    shouldParseHierarchyOf t1 t2 = (showHierarchy <$> t1) `shouldParse` (showHierarchy t2)
+    shouldParseHierarchyOf t1 t2 = (showHierarchy <$> t1) `shouldParse` showHierarchy t2
 
 instance CompareHierarchycally (Either String Type) where
     shouldParseHierarchyOf t1 (Right t2) = t1 `shouldParseHierarchyOf` t2
