@@ -23,11 +23,15 @@ square, rect, shape :: Type
     square <- single "Square" `extends` rect
     return [square, rect, shape]
 
+a, b, c, d :: Type
+[a, b, c, d, k, v] = poly <$> ["A", "B", "C", "D", "K", "V"]
+
 -- Func examples
 funcB :: Type -> Type -> Type
 funcB a b = comp "=>" [contr a, cov b]
 
-a, b, c, d :: Type
-[a, b, c, d] = poly <$> ["A", "B", "C", "D"]
+mapB :: Type -> Type -> Type
+mapB a b = comp "Map" [inv a, cov b]
 
+lst :: Type -> Type
 lst a = comp "List" [cov a]

@@ -1,5 +1,5 @@
 module TypeParser (
-    nameP, varP, typeParamsP, bindingsP, parseTypeP, TypeDeclarations(..), Parser
+    nameP, varP, typeParamsP, bindingsP, parseTypeP, TypeDeclarations(..), Parser, paramListP
 ) where
 
 import Text.Megaparsec
@@ -26,7 +26,7 @@ varP = option Inv (fmap foo (char '+' <|> char '-'))
 paramListP :: Parser a -> Parser [a]
 paramListP p = char '[' *> repeating <* char ']'
     where
-        repeating = (:) <$> p <*> some (spacedComma *> p)
+        repeating = (:) <$> p <*> many (spacedComma *> p)
         spacedComma = space *> char ',' *> space
 
 
@@ -37,11 +37,18 @@ bindingsP :: TypeDeclarations -> Parser [Type]
 bindingsP c = paramListP (parseTypeP c)
 
 parseTypeP :: TypeDeclarations -> Parser Type
-parseTypeP (TD c) = do
+parseTypeP dc@(TD c) = do
         n <- nameP -- replace with recursive type parsing like List[List[A]]
         case M.lookup n c of
-                 Just t -> pure t
-                 Nothing -> customFailure $ "Failed to find type " <> n <> " declaration"
+                 Nothing -> poly n <$ notFollowedBy lSquareBracket
+                 Just Any  -> pure any
+                 Just a@(Cp _ [] _) -> a <$ notFollowedBy lSquareBracket
+                 Just a@(Cp _ params _) -> do 
+                    types <- paramListP (parseTypeP dc)
+                    rm <- either customFailure pure $ rewriteMap types params
+                    return $ rewriteType a rm
+    where
+        lSquareBracket :: Parser Char = char '['
         
 
 instance ShowErrorComponent String where

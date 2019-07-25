@@ -1,8 +1,9 @@
 module Typed
-    ( 
-        Variance(..), Param(..), Type, Substitutable, (==>), (<==),
+    (  -- Reduce scope of Type(..)
+        Variance(..), Param(..), Type(..), Substitutable, (==>), (<==),
         cov, inv, contr, single, comp, extends, anc, poly, any,
-        lstHierarchy, showHierarchy, buildType, polysFromParams
+        lstHierarchy, showHierarchy, buildType, polysFromParams,
+        rewriteType, rewriteMap
     )
 where
 
@@ -97,6 +98,11 @@ buildType name tparams xs p@(Cp _ al _) = Cp name tparams <$> rewrited
                         $  "Substitution poly type "
                         <> show t
                         <> " is not present in type's param list"
+-- get poly types
+polyNames :: [Param Type] -> Either String (Map String Variance)
+polyNames [] = Right M.empty
+polyNames (TP var (Poly n) : xs) = M.insert n var <$> polyNames xs
+polyNames _ = Left "List of param for the type should contain only polymorphic ones"
 
 rewriteType :: Type -> Map Type Type -> Type
 rewriteType Any                 _ = Any
@@ -108,13 +114,6 @@ rewriteType (  Cp n params anc) m = Cp n (rewriteParams params) (rewriteType anc
     rewriteParams (TP var t : xs) = case M.lookup t m of
                                       Just a  -> TP var a : rewriteParams xs
                                       Nothing -> rewriteParams xs
-
--- get poly types
-polyNames :: [Param Type] -> Either String (Map String Variance)
-polyNames [] = Right M.empty
-polyNames (TP var (Poly n) : xs) = M.insert n var <$> polyNames xs
-polyNames _ = Left "List of param for the type should contain only polymorphic ones"
-
 
 rewriteMap :: [Type] -> [Param Type] -> Either String (Map Type Type)
 rewriteMap [] [] = Right M.empty 
