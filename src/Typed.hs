@@ -71,31 +71,22 @@ buildType name tparams xs p@(Cp _ al _) = Cp name (toPoly tparams) <$> rewrited
   where
     rewrited :: Either String Type = do
         m  <- rewriteMap xs al
-        let rt     = rewriteType p m
-            rpolys = polysFromTypeParams rt
-            dif    = rpolys \\ tparams -- not covered polys in type i.e varience mismatch
-        case dif of
-            []             -> Right rt
-            (TP rv tn : xs) -> case M.lookup tn $ polyNames tparams of
-                Just bvar ->
-                    Left
-                        $  "Variance mismatch of type "
-                        <> tn
-                        <> ". Declared "
-                        <> show bvar
-                        <> " is not compatible with required "
-                        <> show rv
-                Nothing ->
-                    Left
-                        $  "Substitution poly type "
-                        <> tn
-                        <> " is not present in type's param list"
+        rewriteType p m `compliesWith` tparams
+        
 --check that builded parent type complies with generics constraints defined in type's parameter list
-
--- get poly types
-polyNames :: [Param String] -> Map String Variance
-polyNames [] = M.empty
-polyNames (TP var n : xs) = M.insert n var $ polyNames xs
+compliesWith :: Type -> [Param String] -> Either String Type
+compliesWith t params = 
+    case polysFromTypeParams t \\ params of
+            []             -> Right t
+            (TP rv tn : xs) -> case M.lookup tn $ toMap params of
+                Just bvar -> Left
+                        $  "Variance mismatch of type " <> tn <> ". Declared " <> show bvar
+                        <> " is not compatible with required " <> show rv
+                Nothing   -> Left $  "Substitution poly type " <> tn <> " is not present in type's param list"
+        where
+            toMap :: [Param String] -> Map String Variance
+            toMap [] = M.empty
+            toMap (TP var n : xs) = M.insert n var $ toMap xs
 
 rewriteType :: Type -> Map Type Type -> Type
 rewriteType Any                 _ = Any
