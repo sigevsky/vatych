@@ -72,7 +72,7 @@ compliedWith :: Type -> [Param String] -> Either String Type
 compliedWith t params = 
     case polysFromTypeParams t \\ params of
             []             -> Right t
-            (TP rv tn : xs) -> case M.lookup tn $ toMap params of
+            (TP rv tn : _) -> case M.lookup tn $ toMap params of
                 Just bvar -> Left
                         $  "Variance mismatch of type " <> tn <> ". Declared " <> show bvar
                         <> " is not compatible with required " <> show rv
@@ -97,7 +97,7 @@ rewriteMap :: [Type] -> [Param Type] -> Either String (Map Type Type)
 rewriteMap [] [] = Right M.empty 
 rewriteMap [] _ = Left "Not all parent's type params were covered" 
 rewriteMap _ [] = Left "Parent's type param length is less then substitution specifies" 
-rewriteMap (nm : ns) (TP yvar t : ts) = M.insert t nm <$> rewriteMap ns ts
+rewriteMap (nm : ns) (TP _ t : ts) = M.insert t nm <$> rewriteMap ns ts
             
 -- extracts poly params from type param list i.e Foo[-C[-A], -P[-L[-B]]] -> [cov A, contr B] 
 polysFromTypeParams :: Type -> [Param String]
@@ -107,7 +107,7 @@ polysFromTypeParams (Cp _ params _) = nub $ acc params
   where
     acc :: [Param Type] -> [Param String]
     acc []                         = []
-    acc (TP var          Any : _ ) = []
+    acc (TP _          Any : _ ) = []
     acc (TP var (Poly n)   : xs) = TP var n : acc xs
     acc (TP var (Cp _ params _) : xs) = fmap (\(TP v n) -> TP (var <> v) n) (acc params) ++ acc xs
 

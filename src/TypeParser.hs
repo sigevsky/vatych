@@ -3,9 +3,8 @@ module TypeParser (
 ) where
 
 import Text.Megaparsec
-import Text.Megaparsec.Char (upperChar, letterChar, char, space, string)
+import Text.Megaparsec.Char (upperChar, letterChar, char, space)
 import Data.Text hiding (any)
-import Data.Void
 import Data.Map (Map)
 import qualified Data.Map as M
 import Typed
@@ -22,13 +21,13 @@ varP :: Parser Variance
 varP = option Inv (fmap foo (char '+' <|> char '-'))
     where foo '+' = Cov
           foo '-' = Contr
+          foo  _  = Inv
 
 paramListP :: Parser a -> Parser [a]
 paramListP p = char '[' *> repeating <* char ']'
     where
         repeating = (:) <$> p <*> many (spacedComma *> p)
         spacedComma = space *> char ',' *> space
-
 
 typeParamsP :: Parser [Param String]
 typeParamsP = paramListP (TP <$> varP <*> nameP)
@@ -42,6 +41,7 @@ parseTypeP dc@(TD c) = do
         case M.lookup n c of
             Nothing -> poly n <$ notFollowedBy lSquareBracket
             Just Any  -> pure any
+            Just (Poly _) -> customFailure "Poly types are prohibited in the type declaration context"
             Just a@(Cp _ [] _) -> a <$ notFollowedBy lSquareBracket
             Just a@(Cp _ params _) -> do 
                 types <- paramListP (parseTypeP dc)
@@ -49,7 +49,6 @@ parseTypeP dc@(TD c) = do
                 return $ rewriteType a rm
     where
         lSquareBracket :: Parser Char = char '['
-        
 
 instance ShowErrorComponent String where
     showErrorComponent = show
