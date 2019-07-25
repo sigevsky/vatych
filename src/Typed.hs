@@ -5,7 +5,7 @@ module Typed
         Variance(..), Param(..), Type(..), Substitutable, (==>), (<==),
         cov, inv, contr, single, comp, extends, anc, poly, any,
         lstHierarchy, showHierarchy, buildType, polysFromTypeParams,
-        rewriteType, rewriteMap
+        rewriteType, rewriteMap, compliedWith, toPoly
     )
 where
 

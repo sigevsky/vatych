@@ -1,9 +1,10 @@
 module TypeParser (
-    nameP, varP, typeParamsP, bindingsP, parseTypeP, TypeDeclarations(..), Parser, paramListP
+    nameP, varP, typeParamsP, bindingsP, parseTypeP, TypeDeclarations(..), Parser, paramListP,
+    declarationP
 ) where
 
 import Text.Megaparsec
-import Text.Megaparsec.Char (upperChar, letterChar, char, space)
+import Text.Megaparsec.Char (upperChar, letterChar, char, space, space1, string, eol)
 import Data.Text hiding (any)
 import Data.Map (Map)
 import qualified Data.Map as M
@@ -37,11 +38,11 @@ bindingsP c = paramListP (parseTypeP c)
 
 parseTypeP :: TypeDeclarations -> Parser Type
 parseTypeP dc@(TD c) = do
-        n <- nameP -- replace with recursive type parsing like List[List[A]]
+        n <- nameP
         case M.lookup n c of
             Nothing -> poly n <$ notFollowedBy lSquareBracket
             Just Any  -> pure any
-            Just (Poly _) -> customFailure "Poly types are prohibited in the type declaration context"
+            Just (Poly n) -> customFailure $ "Poly types (" <> n <> " tried) are prohibited in the type declaration context"
             Just a@(Cp _ [] _) -> a <$ notFollowedBy lSquareBracket
             Just a@(Cp _ params _) -> do 
                 types <- paramListP (parseTypeP dc)
@@ -49,6 +50,22 @@ parseTypeP dc@(TD c) = do
                 return $ rewriteType a rm
     where
         lSquareBracket :: Parser Char = char '['
+
+declarationP :: TypeDeclarations -> Parser Type
+declarationP td = do
+        string "class"
+        space1
+        name <- nameP
+        params <- option [] typeParamsP
+        parent <- eol *> pure Any <|> parseParentPart params
+        return $ Cp name (toPoly params) parent
+    where 
+        parseParentPart params = do
+            space1
+            string "extends"
+            space1
+            t <- parseTypeP td
+            either customFailure pure (t `compliedWith` params) <* eol
 
 instance ShowErrorComponent String where
     showErrorComponent = show
