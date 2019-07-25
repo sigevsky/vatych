@@ -73,36 +73,31 @@ spec = do
         
         it "should create base polymorphic function" $ example $ do
             let
-              foo = buildType "=>" [contr a, cov b] [] any
+              foo = buildType "=>" [contr "A", cov "B"] [] any
             showE foo `shouldBe` "A => B"
         
         it "should partially subtype poly function" $ example $ do
             let
               foo = funcB a b
-              im  = buildType "Partial" [contr c] [c, rect] foo
+              im  = buildType "Partial" [contr "C"] [c, rect] foo
             showEstr (showHierarchy <$> im) `shouldBe` "Partial[C] -> C => Rectangle -> Any"   
-        
-        it "should fail on non poly type's parameters passed" $ example $ do
-          let
-            foo = buildType "Some" [cov a, cov $ lst a, contr b] [] any
-          foo `shouldBe` Left "List of param for the type should contain only polymorphic ones"
 
         it "should fail on type params lengths mismatch" $ example $ do
             let
               foo = funcB a b
-            buildType "Partial" [contr c] [c] foo `shouldBe` Left "Not all parent's type params were covered"
-            buildType "Partial" [contr c, cov a] [c, a, c] foo `shouldBe` Left "Parent's type param length is less then substitution specifies"
+            buildType "Partial" [contr "C"] [c] foo `shouldBe` Left "Not all parent's type params were covered"
+            buildType "Partial" [contr "C", cov "A"] [c, a, c] foo `shouldBe` Left "Parent's type param length is less then substitution specifies"
 
         it "should fail on mismatching variance" $ example $ do
             let
               foo = funcB a b
-              im  = buildType "Partial" [contr c] [c, c] foo
+              im  = buildType "Partial" [contr "C"] [c, c] foo
             im `shouldBe` Left "Variance mismatch of type C. Declared Contr is not compatible with required Cov"
     
         it "should fail on unspecified substitution parameter" $ example $ do
             let
               foo = funcB a b
-              im  = buildType "Partial" [contr c] [c, a] foo
+              im  = buildType "Partial" [contr "C"] [c, a] foo
             im `shouldBe` Left "Substitution poly type A is not present in type's param list"
 
         it "should return poly type's variance position" $ example $ do
@@ -115,21 +110,21 @@ spec = do
               c3 = p $ p $ c $ p a
               c4 = p $ c $ c $ p a
             show c1 `shouldBe` "P[P[P[A]]]"
-            polysFromTypeParams c1 `shouldBe` [cov a]
+            polysFromTypeParams c1 `shouldBe` [cov "A"]
 
             show c2 `shouldBe` "C[P[I[P[A]]]]"
-            polysFromTypeParams c2 `shouldBe` [inv a]
+            polysFromTypeParams c2 `shouldBe` [inv "A"]
 
             show c3 `shouldBe` "P[P[C[P[A]]]]"
-            polysFromTypeParams c3 `shouldBe` [contr a]
+            polysFromTypeParams c3 `shouldBe` [contr "A"]
 
             show c4 `shouldBe` "P[C[C[P[A]]]]"
-            polysFromTypeParams c4 `shouldBe` [cov a]
+            polysFromTypeParams c4 `shouldBe` [cov "A"]
 
         it "should return double enterance" $ example $ do
             let
               foo = funcB (lst a) a
-            polysFromTypeParams foo `shouldBe` [contr a, cov a]
+            polysFromTypeParams foo `shouldBe` [contr "A", cov "A"]
 
         it "should return double enterance" $ example $ do
           let
@@ -137,10 +132,10 @@ spec = do
             p t = comp "P" [cov t]
             cps = funcB (p $ c $ funcB a (c b)) (c $ c b)
           show cps `shouldBe` "P[C[A => C[B]]] => C[C[B]]"
-          polysFromTypeParams cps `shouldBe` [contr a, contr b, cov b]
+          polysFromTypeParams cps `shouldBe` [contr "A", contr "B", cov "B"]
 
         it "should fail putting covariant type in contravariant position" $ example $ do
             let
               foo = funcB a b
-              im  = buildType "Partial" [cov a] [lst a, a] foo
+              im  = buildType "Partial" [cov "A"] [lst a, a] foo
             im `shouldBe` Left "Variance mismatch of type A. Declared Cov is not compatible with required Contr"
